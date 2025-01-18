@@ -1,17 +1,17 @@
 -- Domains Table
-CREATE TABLE Domains (
+CREATE TABLE IF NOT EXISTS Domains (
     domain_name VARCHAR(255) PRIMARY KEY, -- Primary key, non-NULL
     ip_address VARCHAR(45),              -- IP address (nullable for unresolved domains)
     routable BOOLEAN NOT NULL            -- Boolean to indicate if the domain is routable
 );
 
 -- Application Definition Table
-CREATE TABLE ApplicationDefinition (
+CREATE TABLE IF NOT EXISTS ApplicationDefinition (
     application_name VARCHAR(255) PRIMARY KEY -- Primary key, non-NULL
 );
 
 -- URLs Table
-CREATE TABLE URLs (
+CREATE TABLE IF NOT EXISTS URLs (
     url VARCHAR(2083) PRIMARY KEY,        -- Primary key, non-NULL (max URL length: 2083 characters)
     port_number INT NOT NULL,             -- Port number (non-NULL)
     title VARCHAR(255),                   -- Nullable to handle cases where title is unavailable
@@ -22,7 +22,7 @@ CREATE TABLE URLs (
 );
 
 -- Username and Password Table
-CREATE TABLE UserCredentials (
+CREATE TABLE IF NOT EXISTS UserCredentials (
     username VARCHAR(255) NOT NULL,       -- Username (non-NULL)
     password VARCHAR(255) NOT NULL,       -- Password (non-NULL)
     url VARCHAR(2083) NOT NULL,           -- Foreign key in URLs table
@@ -31,12 +31,12 @@ CREATE TABLE UserCredentials (
 );
 
 -- Tags Definition Table
-CREATE TABLE TagsDefinition (
+CREATE TABLE IF NOT EXISTS TagsDefinition (
     tag_name VARCHAR(255) PRIMARY KEY     -- Primary key, non-NULL
 );
 
 -- Tags Table
-CREATE TABLE Tags (
+CREATE TABLE IF NOT EXISTS Tags (
     url VARCHAR(2083) NOT NULL,           -- Foreign key in URLs table
     tag_name VARCHAR(255) NOT NULL,       -- Foreign key in TagsDefinition table
     PRIMARY KEY (url, tag_name),          -- Composite primary key
