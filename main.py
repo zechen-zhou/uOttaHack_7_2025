@@ -21,33 +21,13 @@
 
 import subprocess
 import mysql.connector
+from mysql.connector import Error
 import os
 import dotenv
 from dotenv import load_dotenv
 
 def create_db(schema_fname):
-    # Load the .env file
-    load_dotenv()
-
-    # Access the environment variables
-    db_host = os.getenv("DB_HOST")
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    db_name = os.getenv("DB_NAME")
-
-    # Print the values (for testing purposes)
-    print(f"Host: {db_host}, User: {db_user}, Password: {db_password}, Database: {db_name}")
-
-    # Connect to the MySQL database
-    db_connection = mysql.connector.connect(
-        host=db_host,
-        user=db_user,
-        password=db_password,
-        database=db_name
-    )
-
-    # Create a cursor object
-    cursor = db_connection.cursor()
+    db_connection, cursor = get_database_connection()
     
     with open(schema_fname) as f:
         sql_commands = f.read()
@@ -66,8 +46,50 @@ def create_db(schema_fname):
                 db_connection.rollback()  # Rollback if error occurs
 
     # Close the cursor and connection
-    cursor.close()
-    db_connection.close()
+    close_database_connection(db_connection, cursor)
+
+
+"""
+Establish a connection to the MySQL database using environment variables.
+"""
+def get_database_connection():
+    # Load the .env file
+    load_dotenv()
+
+    try:
+        # Access the environment variables
+        db_host = os.getenv("DB_HOST")
+        db_user = os.getenv("DB_USER")
+        db_password = os.getenv("DB_PASSWORD")
+        db_name = os.getenv("DB_NAME")
+
+        # Connect to the MySQL database
+        db_connection = mysql.connector.connect(
+            host=db_host,
+            user=db_user,
+            password=db_password,
+            database=db_name
+        )
+
+        # Create a cursor object
+        cursor = db_connection.cursor()
+
+        return db_connection, cursor
+    
+
+    except Error as e:
+        print(f"Error connecting to the database: {e}")
+        return None, None
+
+
+"""
+Close the cursor and database connection.
+"""
+def close_database_connection(db_connection, cursor):
+    if cursor:
+        cursor.close()
+    if db_connection:
+        db_connection.close()
 
 def run_parse_store():
     print("###########################")
