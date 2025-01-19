@@ -44,3 +44,21 @@ CREATE TABLE IF NOT EXISTS TAGS (
     FOREIGN KEY (url_id) REFERENCES URLS(url_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_name) REFERENCES TAGS_DEFINITION(tag_name) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS ALLINFO (
+    url_id BIGINT AUTO_INCREMENT PRIMARY KEY, -- New primary key (auto-increment)
+    url VARCHAR(2083) NOT NULL,
+    port_number INT NOT NULL,
+    title VARCHAR(255),
+    
+    domain_name VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45),
+    routable BOOLEAN NOT NULL,
+    
+    application_name VARCHAR(255),
+
+    username VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+
+    tag_name VARCHAR(255)
+)
