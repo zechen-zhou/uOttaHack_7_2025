@@ -23,8 +23,17 @@ class LineResult(NamedTuple):
 #   - can check the suffix with tldextract?
 # - get the title of webpages
 
+# Define lines in the sample file which we can skip (since we're allowed to
+# just skip lines that are too messy)
+CAN_SKIP_SAMPLE_TXT = {
+    "https://www.eprimo.de:::karinkuepper@hotmail.de:Diddilein.0815:Profiles:h1uuk71a.default-1551943278195",
+    "https://www.facebook.com:::damianurrea@yahoo.com:cocoloco87:Profiles:1lyubw9l.default-1514016732105",
+}
 
-def parse_line(line):
+
+def parse_line(line, skippable_lines=None, get_ip=False, delay_ip_placeholder="LATER"):
+    if skippable_lines is not None and line in skippable_lines:
+        return None
     try:
         port = -1
         routable = True
@@ -49,12 +58,14 @@ def parse_line(line):
                 # be invalid and skip it
                 return None
         else:
-            # try:
-            ###     ip = socket.gethostbyname(tld)
-            # except socket.gaierror:
-            #     # If there's an error looking up the TLD, set the IP to None
-            #     ip = None
-            ip = "LATER"
+            if get_ip:
+                try:
+                    ip = socket.gethostbyname(tld)
+                except socket.gaierror:
+                    # If there's an error looking up the TLD, set the IP to None
+                    ip = None
+            else:
+                ip = delay_ip_placeholder  # We'll figure out the IPs of valid domains n parallel later
         # Get the port
         urlp = urllib.parse.urlparse(url)
         if port is not None:
@@ -73,8 +84,11 @@ def parse_line(line):
 def parse_file(fname):
     with open(fname) as f:
         lines = f.read().splitlines()
+
+    parsed_lines = []
     for line in tqdm.tqdm(lines):
-        parse_line(line)
+        parsed = parse_line(line, skippable_lines=CAN_SKIP_SAMPLE_TXT)
+        parsed_lines.append(parsed)
 
 
 if __name__ == "__main__":
