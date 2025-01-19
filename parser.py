@@ -35,8 +35,9 @@ class LineResult(NamedTuple):
     password: str
     routable: bool
     tld: str | None
-    ip: str
-    port: int
+    ip: str | None
+    port: int | None
+    is_local_ip: bool
 
 
 # TODO:
@@ -52,18 +53,22 @@ CAN_SKIP_SAMPLE_TXT = {
 }
 
 
-def parse_line(
-    line, skippable_lines=None, resolve_ips=False, delay_resolve_ips_placeholder="LATER"
-):
-    if skippable_lines is not None and line in skippable_lines:
-        return None
+def parse_line(line, resolve_ips=False, delay_resolve_ips_placeholder="LATER"):
     port = -1
     routable = True
+    is_local_ip = False
     password, username, url = line[::-1].split(":", 2)
     url, username, password = url[::-1], username[::-1], password[::-1]
     extract = tldextract.extract(url)
     tld = extract.registered_domain
-    if tld == "android.app" or extract.suffix == "android":
+    # Check to see if the line refers to an android app
+    if (
+        line.startswith("android://")
+        or tld == "android.app"
+        or extract.suffix == "android"
+        or (extract.subdomain.endswith(".android") and extract.suffix == "")
+    ):
+        tld = "android.app"
         ip = None
         routable = False
         # Can't verify port for an android app
@@ -73,12 +78,14 @@ def parse_line(
         tld = None
         try:
             ip = ipaddress.ip_address(extract.domain)
-            routable = ip.is_private
+            routable = not ip.is_private
         except Exception:
-            # If we can't find the IP address or the domain, we can't
-            # insert the data into our table schema. Consider the line to
-            # be invalid and skip it
-            return None
+            # If this isn't a recognizable Android app and it isn't a valid IP
+            # or domain name, then don't bother determining the port and return
+            # whatever data has currently been determined
+            return LineResult(
+                url, username, password, False, None, None, None, is_local_ip
+            )
     else:
         if resolve_ips:
             try:
@@ -90,6 +97,7 @@ def parse_line(
             ip = delay_resolve_ips_placeholder  # We'll figure out the IPs of valid domains n parallel later
     # Get the port
     urlp = urllib.parse.urlparse(url)
+    # If the port has still not been assigned a valid value, attempt to determine it
     if port is not None:
         # If urlparse can determine the port from the URL use it
         if urlp.port is not None:
@@ -97,29 +105,42 @@ def parse_line(
         # If the scheme is http or https make a reasonable assumption of the default ports
         elif urlp.scheme == "https" or urlp.scheme == "http":
             port = 80 if urlp.scheme == "http" else 443
-        # Otherwise, use the sentinel port value of -1 to indicate that the
-        # port number can't be reliably determined (e.g. if the line is an
-        # Android app, etc.)
-    return LineResult(url, username, password, routable, tld, str(ip), port)
+        # Otherwise, let the port be None to indicate that the port number
+        # can't be reliably determined (e.g. if the line is an Android app, if
+        # it contains a domain (that maps to an IP) but no scheme (e.g. FTP,
+        # RTSP, etc.), etc.)
+        else:
+            port = None
+    return LineResult(
+        url,
+        username,
+        password,
+        routable,
+        tld,
+        ip if ip is None else str(ip),
+        port,
+        is_local_ip,
+    )
 
 
-def parse_file(fname, skip_on_error=False):
+def parse_file(fname, skippable_lines=None, skip_on_error=False):
     with open(fname) as f:
         lines = f.read().splitlines()
 
     parsed_lines = []
     for line in tqdm.tqdm(lines):
         try:
-            parsed = parse_line(
-                line, skippable_lines=CAN_SKIP_SAMPLE_TXT, resolve_ips=False
-            )
+            parsed = parse_line(line, resolve_ips=False)
         except Exception as e:
             if skip_on_error:
+                continue
+            elif skippable_lines is not None and line in skippable_lines:
                 continue
             else:
                 raise RuntimeError(f"Failed to parse line: {line}") from e
         parsed_lines.append(parsed)
+    return parsed_lines
 
 
 if __name__ == "__main__":
-    parse_file("sample.txt")
+    parse_file("sample.txt", skippable_lines=CAN_SKIP_SAMPLE_TXT)
