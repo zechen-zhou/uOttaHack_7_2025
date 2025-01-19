@@ -25,6 +25,7 @@ import urllib
 import urllib.parse
 from typing import NamedTuple
 
+import pandas as pd
 import tldextract
 import tqdm
 
@@ -123,7 +124,13 @@ def parse_line(line, resolve_ips=False, delay_resolve_ips_placeholder="LATER"):
     )
 
 
-def parse_file(fname, skippable_lines=None, skip_on_error=False):
+def parse_file(
+    fname,
+    skippable_lines=None,
+    skip_on_error=False,
+    return_nones=False,
+    return_pandas=True,
+):
     with open(fname) as f:
         lines = f.read().splitlines()
 
@@ -139,6 +146,10 @@ def parse_file(fname, skippable_lines=None, skip_on_error=False):
             else:
                 raise RuntimeError(f"Failed to parse line: {line}") from e
         parsed_lines.append(parsed)
+    if not return_nones:
+        parsed_lines = [item for item in parsed_lines if item is not None]
+    if return_pandas:
+        return pd.DataFrame(parsed_lines)
     return parsed_lines
 
 
