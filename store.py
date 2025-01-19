@@ -23,7 +23,11 @@ import mysql.connector
 from mysql.connector import Error
 import os
 import dotenv
+import parser
 from dotenv import load_dotenv
+from parser import parse_file
+from sqlalchemy import create_engine
+import pandas as pd
 
 """
 Create a database by executing a sql file
@@ -94,12 +98,88 @@ def close_database_connection(db_connection, cursor):
         db_connection.close()
 
 
+def insert_all_data():
+    table_name = "ALLINFO"
+
+    # Load the .env file
+    load_dotenv()
+
+    try:
+        # Access the environment variables
+        db_host = os.getenv("DB_HOST")
+        username = os.getenv("DB_USER")
+        password = os.getenv("DB_PASSWORD")
+        db_name = os.getenv("DB_NAME")
+        port = "3306"
+    
+    except Error as e:
+        print(f"Error connecting to the database: {e}")
+        return None, None
+    
+    # Define connection details
+    engine = create_engine(f"mysql+pymysql://{username}:{password}@localhost/{db_name}")
+
+    conn = engine.connect()
+
+    df = parser.parse_file("sample.txt", parser.CAN_SKIP_SAMPLE_TXT)
+    df.to_sql(table_name, conn, if_exists="append", index=False)
+    
+
+"""
+Insert parsed data into table "DOMAINS".
+"""
+def insert_domains_data(input_file):
+    # Parse the file
+    parsed_lines = parse_file(input_file, skip_on_error=True)
+
+    parsed_data = [
+        (
+            line.tld,
+            line.ip,
+            line.routable,
+        )
+        for line in parsed_lines
+        if line is not None
+    ]
+
+    table_name = "DOMAINS"
+    db_connection, cursor = get_database_connection()
+
+    if not db_connection or not cursor:
+        print("Unable to connect to the database.")
+        return
+
+    try:
+        # Prepare the SQL INSERT query
+        insert_query = f"""
+        INSERT INTO {table_name} 
+        (domain_name, ip_address, routable) 
+        VALUES (%s, %s, %s)
+        """
+
+        # Execute the query for each parsed line
+        cursor.executemany(insert_query, parsed_data)
+
+        # Commit the transaction
+        db_connection.commit()
+        print(f"Successfully inserted {cursor.rowcount} rows into {table_name}.")
+
+    except Error as e:
+        print(f"Error inserting data: {e}")
+        db_connection.rollback()  # Rollback in case of an error
+
+    finally:
+        close_database_connection(db_connection, cursor)
+
 if __name__ == "__main__":
     create_table_sql_path = "./create.sql"
+    breach_data_path = "./sample.txt"
 
     # Create tables in MySQL database
-    create_db(create_table_sql_path)
+    # create_db(create_table_sql_path)
 
     # Insert parsed data into database
-    
+    # insert_domains_data(breach_data_path)
+
+    insert_all_data()
 

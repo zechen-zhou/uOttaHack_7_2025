@@ -131,7 +131,7 @@ def parse_file(
     return_nones=False,
     return_pandas=True,
 ):
-    with open(fname) as f:
+    with open(fname, encoding="utf-8") as f:
         lines = f.read().splitlines()
 
     parsed_lines = []
